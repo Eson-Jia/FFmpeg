@@ -36,6 +36,12 @@ typedef struct TLSShared {
     char *host;
     char *http_proxy;
 
+    int tlcp;
+    char *sign_key;
+    char *sign_cert;
+    char *enc_cert;
+    char *enc_key;
+
     char underlying_host[200];
     int numerichost;
 
@@ -51,8 +57,12 @@ typedef struct TLSShared {
     {"key_file",   "Private key file",                    offsetof(pstruct, options_field . key_file),  AV_OPT_TYPE_STRING, .flags = TLS_OPTFL }, \
     {"listen",     "Listen for incoming connections",     offsetof(pstruct, options_field . listen),    AV_OPT_TYPE_INT, { .i64 = 0 }, 0, 1, .flags = TLS_OPTFL }, \
     {"verifyhost", "Verify against a specific hostname",  offsetof(pstruct, options_field . host),      AV_OPT_TYPE_STRING, .flags = TLS_OPTFL }, \
-    {"http_proxy", "Set proxy to tunnel through",         offsetof(pstruct, options_field . http_proxy), AV_OPT_TYPE_STRING, .flags = TLS_OPTFL }
-
+    {"http_proxy", "Set proxy to tunnel through",         offsetof(pstruct, options_field . http_proxy), AV_OPT_TYPE_STRING, .flags = TLS_OPTFL }, \
+    {"tlcp",       "Use TLCPv1.1 protocol",               offsetof(pstruct, options_field . tlcp),      AV_OPT_TYPE_INT, { .i64 = 0 }, 0, 1, .flags = TLS_OPTFL }, \
+    {"sign_cert",  "Client signing certificate",          offsetof(pstruct, options_field . sign_cert), AV_OPT_TYPE_STRING, .flags = TLS_OPTFL }, \
+    {"sign_key",   "Client signing private key",          offsetof(pstruct, options_field . sign_key),  AV_OPT_TYPE_STRING, .flags = TLS_OPTFL }, \
+    {"enc_cert",   "Client encryption certificate",       offsetof(pstruct, options_field . enc_cert),  AV_OPT_TYPE_STRING, .flags = TLS_OPTFL }, \
+    {"enc_key",    "Client encryption private key",       offsetof(pstruct, options_field . enc_key),   AV_OPT_TYPE_STRING, .flags = TLS_OPTFL }
 int ff_tls_open_underlying(TLSShared *c, URLContext *parent, const char *uri, AVDictionary **options);
 
 void ff_gnutls_init(void);

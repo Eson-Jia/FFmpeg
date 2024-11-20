@@ -269,7 +269,7 @@ static int tls_open(URLContext *h, const char *uri, int flags, AVDictionary **op
     // and insecure SSLv2 and SSLv3.  Despite the name, SSLv23_*_method()
     // enables support for all versions of SSL and TLS, and we then disable
     // support for the old protocols immediately after creating the context.
-    p->ctx = SSL_CTX_new(c->listen ? SSLv23_server_method() : SSLv23_client_method());
+    p->ctx = SSL_CTX_new(c->listen ? (c->tlcp ? NTLS_server_method() : SSLv23_server_method()) : (c->tlcp ? NTLS_client_method() : SSLv23_client_method()));
     if (!p->ctx) {
         av_log(h, AV_LOG_ERROR, "%s\n", ERR_error_string(ERR_get_error(), NULL));
         ret = AVERROR(EIO);
@@ -291,6 +291,36 @@ static int tls_open(URLContext *h, const char *uri, int flags, AVDictionary **op
                c->key_file, ERR_error_string(ERR_get_error(), NULL));
         ret = AVERROR(EIO);
         goto fail;
+    }
+    if (c->tlcp) {
+        av_log(h, AV_LOG_INFO, "Enabling ntls\n");
+        SSL_CTX_enable_ntls(p->ctx);
+        if (c->sign_cert && !SSL_CTX_use_sign_certificate_file(p->ctx, c->sign_cert, SSL_FILETYPE_PEM)) {
+            av_log(h, AV_LOG_ERROR, "Unable to load sign cert file %s: %s\n",
+                   c->sign_cert, ERR_error_string(ERR_get_error(), NULL));
+            ret = AVERROR(EIO);
+            goto fail;
+        }
+        if (c->sign_key && !SSL_CTX_use_sign_PrivateKey_file(p->ctx, c->sign_key, SSL_FILETYPE_PEM)) {
+            av_log(h, AV_LOG_ERROR, "Unable to load sign key file %s: %s\n",
+                   c->sign_key, ERR_error_string(ERR_get_error(), NULL));
+            ret = AVERROR(EIO);
+            goto fail;
+        }
+        if (c->enc_cert && !SSL_CTX_use_enc_certificate_file(p->ctx, c->enc_cert, SSL_FILETYPE_PEM)) {
+            av_log(h, AV_LOG_ERROR, "Unable to load enc cert file %s: %s\n",
+                   c->enc_cert, ERR_error_string(ERR_get_error(), NULL));
+            ret = AVERROR(EIO);
+            goto fail;
+        }
+        if (c->enc_key && !SSL_CTX_use_enc_PrivateKey_file(p->ctx, c->enc_key, SSL_FILETYPE_PEM)) {
+            av_log(h, AV_LOG_ERROR, "Unable to load enc key file %s: %s\n",
+                   c->enc_key, ERR_error_string(ERR_get_error(), NULL));
+            ret = AVERROR(EIO);
+            goto fail;
+        }
+    } else {
+        av_log(h, AV_LOG_INFO, "disabled ntls\n");
     }
     // Note, this doesn't check that the peer certificate actually matches
     // the requested hostname.

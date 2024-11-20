@@ -1,0 +1,143 @@
+Subject: [PATCH] 添加国密适配项
+---
+Index: libavformat/tls.c
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/libavformat/tls.c b/libavformat/tls.c
+--- a/libavformat/tls.c	(revision 4571c80b404fef48d649c71a059d8d00c5275c95)
++++ b/libavformat/tls.c	(revision f5b3e085c36673981889255b12fcd653a2e9c8c2)
+@@ -62,6 +62,34 @@
+             return AVERROR(ENOMEM);
+     }
+ 
++    if (!c->tlcp && av_find_info_tag(buf, sizeof(buf), "tlcp", p)) {
++        c->tlcp = 1;
++    }
++
++    if (!c->sign_cert && av_find_info_tag(buf, sizeof(buf), "sign_cert", p)) {
++        c->sign_cert = av_strdup(buf);
++        if (!c->sign_cert)
++            return AVERROR(ENOMEM);
++    }
++
++    if (!c->sign_key && av_find_info_tag(buf, sizeof(buf), "sign_key", p)) {
++        c->sign_key = av_strdup(buf);
++        if (!c->sign_key)
++            return AVERROR(ENOMEM);
++    }
++
++    if (!c->enc_cert && av_find_info_tag(buf, sizeof(buf), "enc_cert", p)) {
++        c->enc_cert = av_strdup(buf);
++        if (!c->enc_cert)
++            return AVERROR(ENOMEM);
++    }
++
++    if (!c->enc_key && av_find_info_tag(buf, sizeof(buf), "enc_key", p)) {
++        c->enc_key = av_strdup(buf);
++        if (!c->enc_key)
++            return AVERROR(ENOMEM);
++    }
++
+     return 0;
+ }
+ 
+Index: libavformat/tls.h
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/libavformat/tls.h b/libavformat/tls.h
+--- a/libavformat/tls.h	(revision 4571c80b404fef48d649c71a059d8d00c5275c95)
++++ b/libavformat/tls.h	(revision f5b3e085c36673981889255b12fcd653a2e9c8c2)
+@@ -36,6 +36,12 @@
+     char *host;
+     char *http_proxy;
+ 
++    int tlcp;
++    char *sign_cert;
++    char *sign_key;
++    char *enc_cert;
++    char *enc_key;
++
+     char underlying_host[200];
+     int numerichost;
+ 
+@@ -51,8 +57,12 @@
+     {"key_file",   "Private key file",                    offsetof(pstruct, options_field . key_file),  AV_OPT_TYPE_STRING, .flags = TLS_OPTFL }, \
+     {"listen",     "Listen for incoming connections",     offsetof(pstruct, options_field . listen),    AV_OPT_TYPE_INT, { .i64 = 0 }, 0, 1, .flags = TLS_OPTFL }, \
+     {"verifyhost", "Verify against a specific hostname",  offsetof(pstruct, options_field . host),      AV_OPT_TYPE_STRING, .flags = TLS_OPTFL }, \
+-    {"http_proxy", "Set proxy to tunnel through",         offsetof(pstruct, options_field . http_proxy), AV_OPT_TYPE_STRING, .flags = TLS_OPTFL }
+-
++    {"http_proxy", "Set proxy to tunnel through",         offsetof(pstruct, options_field . http_proxy), AV_OPT_TYPE_STRING, .flags = TLS_OPTFL }, \
++    {"tlcp",       "Use TLCPv1.1 protocol",               offsetof(pstruct, options_field . tlcp),      AV_OPT_TYPE_INT, { .i64 = 0 }, 0, 1, .flags = TLS_OPTFL }, \
++    {"sign_cert",  "Client signing certificate",          offsetof(pstruct, options_field . sign_cert), AV_OPT_TYPE_STRING, .flags = TLS_OPTFL }, \
++    {"sign_key",   "Client signing private key",          offsetof(pstruct, options_field . sign_key),  AV_OPT_TYPE_STRING, .flags = TLS_OPTFL }, \
++    {"enc_cert",   "Client encryption certificate",       offsetof(pstruct, options_field . enc_cert),  AV_OPT_TYPE_STRING, .flags = TLS_OPTFL }, \
++    {"enc_key",    "Client encryption private key",       offsetof(pstruct, options_field . enc_key),   AV_OPT_TYPE_STRING, .flags = TLS_OPTFL }
+ int ff_tls_open_underlying(TLSShared *c, URLContext *parent, const char *uri, AVDictionary **options);
+ 
+ void ff_gnutls_init(void);
+Index: libavformat/tls_openssl.c
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/libavformat/tls_openssl.c b/libavformat/tls_openssl.c
+--- a/libavformat/tls_openssl.c	(revision 4571c80b404fef48d649c71a059d8d00c5275c95)
++++ b/libavformat/tls_openssl.c	(revision f5b3e085c36673981889255b12fcd653a2e9c8c2)
+@@ -265,7 +265,7 @@
+     // and insecure SSLv2 and SSLv3.  Despite the name, SSLv23_*_method()
+     // enables support for all versions of SSL and TLS, and we then disable
+     // support for the old protocols immediately after creating the context.
+-    p->ctx = SSL_CTX_new(c->listen ? SSLv23_server_method() : SSLv23_client_method());
++    p->ctx = SSL_CTX_new(c->listen ? (c->tlcp ? NTLS_server_method() : SSLv23_server_method()) : (c->tlcp ? NTLS_client_method() : SSLv23_client_method()));
+     if (!p->ctx) {
+         av_log(h, AV_LOG_ERROR, "%s\n", ERR_error_string(ERR_get_error(), NULL));
+         ret = AVERROR(EIO);
+@@ -282,11 +282,39 @@
+         ret = AVERROR(EIO);
+         goto fail;
+     }
+-    if (c->key_file && !SSL_CTX_use_PrivateKey_file(p->ctx, c->key_file, SSL_FILETYPE_PEM)) {
+-        av_log(h, AV_LOG_ERROR, "Unable to load key file %s: %s\n",
+-               c->key_file, ERR_error_string(ERR_get_error(), NULL));
+-        ret = AVERROR(EIO);
+-        goto fail;
++    if (c->tlcp) {
++        av_log(h, AV_LOG_INFO, "Enabling ntls\n");
++        SSL_CTX_enable_ntls(p->ctx);
++        if (c->key_file && !SSL_CTX_use_PrivateKey_file(p->ctx, c->key_file, SSL_FILETYPE_PEM)) {
++            av_log(h, AV_LOG_ERROR, "Unable to load key file %s: %s\n",
++                   c->key_file, ERR_error_string(ERR_get_error(), NULL));
++            ret = AVERROR(EIO);
++            goto fail;
++        }
++        if (c->sign_cert && !SSL_CTX_use_sign_certificate_file(p->ctx, c->sign_cert, SSL_FILETYPE_PEM)) {
++            av_log(h, AV_LOG_ERROR, "Unable to load sign cert file %s: %s\n",
++                   c->sign_cert, ERR_error_string(ERR_get_error(), NULL));
++            ret = AVERROR(EIO);
++            goto fail;
++        }
++        if (c->sign_key && !SSL_CTX_use_sign_PrivateKey_file(p->ctx, c->sign_key, SSL_FILETYPE_PEM)) {
++            av_log(h, AV_LOG_ERROR, "Unable to load sign key file %s: %s\n",
++                   c->sign_key, ERR_error_string(ERR_get_error(), NULL));
++            ret = AVERROR(EIO);
++            goto fail;
++        }
++        if (c->enc_cert && !SSL_CTX_use_enc_certificate_file(p->ctx, c->enc_cert, SSL_FILETYPE_PEM)) {
++            av_log(h, AV_LOG_ERROR, "Unable to load enc cert file %s: %s\n",
++                   c->enc_cert, ERR_error_string(ERR_get_error(), NULL));
++            ret = AVERROR(EIO);
++            goto fail;
++        }
++        if (c->enc_key && !SSL_CTX_use_enc_PrivateKey_file(p->ctx, c->enc_key, SSL_FILETYPE_PEM)) {
++            av_log(h, AV_LOG_ERROR, "Unable to load enc key file %s: %s\n",
++                   c->enc_key, ERR_error_string(ERR_get_error(), NULL));
++            ret = AVERROR(EIO);
++            goto fail;
++        }
+     }
+     // Note, this doesn't check that the peer certificate actually matches
+     // the requested hostname.
