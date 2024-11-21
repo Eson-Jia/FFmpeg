@@ -101,6 +101,15 @@ const AVOption ff_rtsp_options[] = {
     { "max_port", "set maximum local UDP port", OFFSET(rtp_port_max), AV_OPT_TYPE_INT, {.i64 = RTSP_RTP_PORT_MAX}, 0, 65535, DEC|ENC },
     { "listen_timeout", "set maximum timeout (in seconds) to wait for incoming connections (-1 is infinite, imply flag listen)", OFFSET(initial_timeout), AV_OPT_TYPE_INT, {.i64 = -1}, INT_MIN, INT_MAX, DEC },
     { "timeout", "set timeout (in microseconds) of socket I/O operations", OFFSET(stimeout), AV_OPT_TYPE_INT64, {.i64 = 0}, INT_MIN, INT64_MAX, DEC },
+    {"ca_file", "set CA cert file", OFFSET(ca_file), AV_OPT_TYPE_STRING, {.str = NULL}, 0, 0, DEC|ENC },
+    {"verify", "verify server certificate", OFFSET(verify), AV_OPT_TYPE_BOOL, {.i64 = 0}, 0, 1, DEC|ENC },
+    {"cert_file", "set client certificate file", OFFSET(cert_file), AV_OPT_TYPE_STRING, {.str = NULL}, 0, 0, DEC|ENC },
+    {"key_file", "set client private key file", OFFSET(key_file), AV_OPT_TYPE_STRING, {.str = NULL}, 0, 0, DEC|ENC },
+    {"tlcp", "set TLCP flags", OFFSET(tlcp), AV_OPT_TYPE_BOOL, {.i64 = 0}, 0, 1, DEC|ENC },
+    { "sign_cert", "set sign certificate file", OFFSET(sign_cert), AV_OPT_TYPE_STRING, {.str = NULL}, 0, 0, DEC|ENC },
+    { "sign_key", "set sign key file", OFFSET(sign_key), AV_OPT_TYPE_STRING, {.str = NULL}, 0, 0, DEC|ENC },
+    { "enc_cert", "set enc certificate file", OFFSET(enc_cert), AV_OPT_TYPE_STRING, {.str = NULL}, 0, 0, DEC|ENC },
+    { "enc_key", "set enc key file", OFFSET(enc_key), AV_OPT_TYPE_STRING, {.str = NULL}, 0, 0, DEC|ENC },
     COMMON_OPTS(),
     { "user_agent", "override User-Agent header", OFFSET(user_agent), AV_OPT_TYPE_STRING, {.str = LIBAVFORMAT_IDENT}, 0, 0, DEC },
     { NULL },
@@ -1896,16 +1905,39 @@ redirect:
         }
         av_dict_free(&options);
     } else {
+        AVDictionary *tls_options = NULL;
         int ret;
         /* open the tcp connection */
         ff_url_join(tcpname, sizeof(tcpname), lower_rtsp_proto, NULL,
                     host, port,
                     "?timeout=%"PRId64, rt->stimeout);
+        if (strcmp("tls",lower_rtsp_proto) == 0) {
+            if(rt->verify)
+                av_dict_set_int(&tls_options, "verify", 1, 0);
+            if (rt->tlcp)
+                av_dict_set_int(&tls_options, "tlcp", 1, 0);
+            if (rt->ca_file)
+                av_dict_set(&tls_options, "ca_file", rt->ca_file, 0);
+            if (rt->cert_file)
+                av_dict_set(&tls_options, "cert_file", rt->cert_file, 0);
+            if (rt->key_file)
+                av_dict_set(&tls_options, "key_file", rt->key_file, 0);
+            if (rt->sign_cert)
+                av_dict_set(&tls_options, "sign_cert", rt->sign_cert, 0);
+            if (rt->sign_key)
+                av_dict_set(&tls_options, "sign_key", rt->sign_key, 0);
+            if (rt->enc_cert)
+                av_dict_set(&tls_options, "enc_cert", rt->enc_cert, 0);
+            if (rt->enc_key)
+                av_dict_set(&tls_options, "enc_key", rt->enc_key, 0);
+        }
         if ((ret = ffurl_open_whitelist(&rt->rtsp_hd, tcpname, AVIO_FLAG_READ_WRITE,
-                       &s->interrupt_callback, NULL, s->protocol_whitelist, s->protocol_blacklist, NULL)) < 0) {
+                       &s->interrupt_callback, &tls_options, s->protocol_whitelist, s->protocol_blacklist, NULL)) < 0) {
+            av_dict_free(&tls_options);
             err = ret;
             goto fail;
         }
+        av_dict_free(&tls_options);
         rt->rtsp_hd_out = rt->rtsp_hd;
     }
     rt->seq = 0;

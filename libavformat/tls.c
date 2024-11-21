@@ -61,6 +61,34 @@ static int set_options(TLSShared *c, const char *uri)
             return AVERROR(ENOMEM);
     }
 
+    if (!c->tlcp && av_find_info_tag(buf, sizeof(buf), "tlcp", p)) {
+        c->tlcp = 1;
+    }
+
+    if (!c->sign_cert && av_find_info_tag(buf, sizeof(buf), "sign_cert", p)) {
+        c->sign_cert = av_strdup(buf);
+        if (!c->sign_cert)
+            return AVERROR(ENOMEM);
+    }
+
+    if (!c->sign_key && av_find_info_tag(buf, sizeof(buf), "sign_key", p)) {
+        c->sign_key = av_strdup(buf);
+        if (!c->sign_key)
+            return AVERROR(ENOMEM);
+    }
+
+    if (!c->enc_cert && av_find_info_tag(buf, sizeof(buf), "enc_cert", p)) {
+        c->enc_cert = av_strdup(buf);
+        if (!c->enc_cert)
+            return AVERROR(ENOMEM);
+    }
+
+    if (!c->enc_key && av_find_info_tag(buf, sizeof(buf), "enc_key", p)) {
+        c->enc_key = av_strdup(buf);
+        if (!c->enc_key)
+            return AVERROR(ENOMEM);
+    }
+
     return 0;
 }
 
