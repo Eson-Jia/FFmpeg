@@ -420,7 +420,7 @@ typedef struct RTSPState {
     int pkt_size;
     char *localaddr;
     char* ca_file;
-    int verify;
+    int tls_verify;
     char *cert_file;
     char *key_file;
     int tlcp;

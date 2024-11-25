@@ -102,7 +102,7 @@ const AVOption ff_rtsp_options[] = {
     { "listen_timeout", "set maximum timeout (in seconds) to wait for incoming connections (-1 is infinite, imply flag listen)", OFFSET(initial_timeout), AV_OPT_TYPE_INT, {.i64 = -1}, INT_MIN, INT_MAX, DEC },
     { "timeout", "set timeout (in microseconds) of socket I/O operations", OFFSET(stimeout), AV_OPT_TYPE_INT64, {.i64 = 0}, INT_MIN, INT64_MAX, DEC },
     {"ca_file", "set CA cert file", OFFSET(ca_file), AV_OPT_TYPE_STRING, {.str = NULL}, 0, 0, DEC|ENC },
-    {"verify", "verify server certificate", OFFSET(verify), AV_OPT_TYPE_BOOL, {.i64 = 0}, 0, 1, DEC|ENC },
+    {"tls_verify", "verify server certificate", OFFSET(tls_verify), AV_OPT_TYPE_BOOL, {.i64 = 0}, 0, 1, DEC|ENC },
     {"cert_file", "set client certificate file", OFFSET(cert_file), AV_OPT_TYPE_STRING, {.str = NULL}, 0, 0, DEC|ENC },
     {"key_file", "set client private key file", OFFSET(key_file), AV_OPT_TYPE_STRING, {.str = NULL}, 0, 0, DEC|ENC },
     {"tlcp", "set TLCP flags", OFFSET(tlcp), AV_OPT_TYPE_BOOL, {.i64 = 0}, 0, 1, DEC|ENC },
@@ -1912,8 +1912,8 @@ redirect:
                     host, port,
                     "?timeout=%"PRId64, rt->stimeout);
         if (strcmp("tls",lower_rtsp_proto) == 0) {
-            if(rt->verify)
-                av_dict_set_int(&tls_options, "verify", 1, 0);
+            if(rt->tls_verify)
+                av_dict_set_int(&tls_options, "tls_verify", 1, 0);
             if (rt->tlcp)
                 av_dict_set_int(&tls_options, "tlcp", 1, 0);
             if (rt->ca_file)
