@@ -485,7 +485,7 @@ static void apply_window_and_mdct(AACEncContext *s, SingleChannelElement *sce,
     else
         for (i = 0; i < 1024; i += 128)
             s->mdct128_fn(s->mdct128, &sce->coeffs[i], output + i*2, sizeof(float));
-    memcpy(audio, audio + 1024, sizeof(audio[0]) * 1024);
+    memmove(audio, audio + 1024, sizeof(audio[0]) * 1024);
     memcpy(sce->pcoeffs, sce->coeffs, sizeof(sce->pcoeffs));
 }
 
@@ -808,7 +808,7 @@ static void copy_input_samples(AACEncContext *s, const AVFrame *frame)
     /* copy and remap input samples */
     for (ch = 0; ch < s->channels; ch++) {
         /* copy last 1024 samples of previous frame to the start of the current frame */
-        memcpy(&s->planar_samples[ch][1024], &s->planar_samples[ch][2048], 1024 * sizeof(s->planar_samples[0][0]));
+        memmove(&s->planar_samples[ch][1024], &s->planar_samples[ch][2048], 1024 * sizeof(s->planar_samples[0][0]));
 
         /* copy new samples and zero any remaining samples */
         if (frame) {

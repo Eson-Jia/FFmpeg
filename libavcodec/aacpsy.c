@@ -230,8 +230,8 @@ static float lame_calc_attack_threshold(int bitrate)
 {
     /* Assume max bitrate to start with */
     int lower_range = 12, upper_range = 12;
-    int lower_range_kbps = psy_abr_map[12].quality;
-    int upper_range_kbps = psy_abr_map[12].quality;
+    int lower_range_kbps = psy_abr_map[lower_range].quality;
+    int upper_range_kbps = psy_abr_map[upper_range].quality;
     int i;
 
     /* Determine which bitrates the value specified falls between.
